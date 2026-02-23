@@ -1,7 +1,15 @@
+package com.example.carrental.service;
+
+import com.example.carrental.domain.Car;
+import com.example.carrental.domain.CarType;
+import com.example.carrental.domain.Reservation;
+
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+// TODO: Consider adding cancellation, listing, and availability query APIs.
+// TODO: Make this class thread-safe if accessed concurrently.
 public class CarRentalService {
 
     private final List<Car> cars = new ArrayList<>();

@@ -11,3 +11,5 @@ public class Application {
 	}
 
 }
+
+// TODO: Expose REST endpoints for reservation, availability and cancellation.
