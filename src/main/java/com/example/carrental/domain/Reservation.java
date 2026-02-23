@@ -1,5 +1,8 @@
+package com.example.carrental.domain;
+
 import java.time.LocalDateTime;
 
+// TODO: Validate inputs (e.g., numberOfDays > 0) and consider adding getters for all fields
 public class Reservation {
     private final String carId;
     private final CarType carType;
