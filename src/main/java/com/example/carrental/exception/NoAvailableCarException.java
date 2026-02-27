@@ -1,10 +1,13 @@
 package com.example.carrental.exception;
 
-// TODO: Add error codes or metadata for consumers to handle different scenarios
+/**
+ * Exception thrown when no cars of the requested type are available
+ * for the requested time period in the car rental system.
+ */
 public class NoAvailableCarException extends RuntimeException {
 
     public NoAvailableCarException() {
-        super();
+        super("No cars available for the requested dates");
     }
 
     public NoAvailableCarException(String message) {
