@@ -11,9 +11,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 /**
- * Service for managing car reservations in the rental system.
- * Handles reservation creation, cancellation, and availability queries.
- * Thread-safe implementation using CopyOnWriteArrayList.
+ * Service for managing car reservations in the rental system
+ * Handles reservation creation, cancellation, and availability queries
+ * Thread-safe implementation using CopyOnWriteArrayList
  */
 public class CarRentalService {
 
@@ -45,6 +45,7 @@ public class CarRentalService {
     public Reservation reserveCar(CarType type,
             LocalDateTime start,
             int days) {
+        // validate inputs early to keep service usage safe
         if (type == null) {
             throw new IllegalArgumentException("Car type cannot be null");
         }
@@ -55,6 +56,10 @@ public class CarRentalService {
             throw new IllegalArgumentException("Number of days must be greater than 0");
         }
 
+        // find the first car of the requested type that is free for the
+        // entire requested period
+        // If none exists we signal failure via NoAvailableCarException so callers can
+        // choose how to handle it
         Car selectedCar = cars.stream()
                 .filter(car -> car.getType() == type)
                 .filter(car -> isAvailable(car.getId(), start, days))
@@ -62,13 +67,14 @@ public class CarRentalService {
                 .orElseThrow(() -> new NoAvailableCarException(
                         "No " + type + " cars available from " + start + " for " + days + " days"));
 
+        // create and record the reservation
         Reservation reservation = new Reservation(selectedCar.getId(), type, start, days);
         reservations.add(reservation);
         return reservation;
     }
 
     /**
-     * Reserves a car (returns Optional for backward compatibility).
+     * Reserves a car
      * 
      * @param type  the type of car to reserve
      * @param start the start time of the reservation
@@ -129,6 +135,11 @@ public class CarRentalService {
      * @param start the start time
      * @param days  the number of days
      * @return true if the car is available, false otherwise
+     */
+    /**
+     * Helper used during reservation logic. We look only at existing
+     * reservations for *this* car and ensure none of them overlap the
+     * requested window.
      */
     private boolean isAvailable(String carId,
             LocalDateTime start,

@@ -7,9 +7,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Application {
 
 	public static void main(String[] args) {
+		// entry point required by Spring Boot
+		// Needed for the existing project structure
+		// No web endpoints are implemented for the assessment but could be added later
+		// for a real service.
 		SpringApplication.run(Application.class, args);
 	}
 
 }
 
-// TODO: Expose REST endpoints for reservation, availability and cancellation.
+// NOTE: REST layer is out of scope for this assignment
+// If added, controllers would use CarRentalService in the background.

@@ -62,8 +62,18 @@ public class Reservation {
         return start.plusDays(numberOfDays);
     }
 
+    /**
+     * Determines whether the time period covered by this reservation
+     * overlaps with another booking window. Used by the service to
+     * reject conflicting reservations.
+     *
+     * @param otherStart start of the other booking
+     * @param otherDays  duration of the other booking in days
+     * @return true if the intervals intersect (even by a partial day)
+     */
     public boolean overlaps(LocalDateTime otherStart, int otherDays) {
         LocalDateTime otherEnd = otherStart.plusDays(otherDays);
+        // overlap occurs when this.start < otherEnd AND this.end > otherStart
         return start.isBefore(otherEnd) && getEnd().isAfter(otherStart);
     }
 

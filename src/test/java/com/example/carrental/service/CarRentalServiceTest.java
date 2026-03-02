@@ -30,7 +30,7 @@ class CarRentalServiceTest {
         baseTime = LocalDateTime.of(2026, 3, 1, 10, 0);
     }
 
-    // ========== Core Requirement Tests ==========
+    // ========== Required Tests ==========
 
     @Test
     void shouldReserveCarWhenAvailable() {
@@ -90,11 +90,12 @@ class CarRentalServiceTest {
         var r1 = singleCarService.reserveCar(CarType.SEDAN, start, 3);
         assertNotNull(r1);
 
-        // overlaps with r1 - should throw exception
+        // overlaps with r1 by one day; should result in no available car
         assertThrows(NoAvailableCarException.class,
                 () -> singleCarService.reserveCar(CarType.SEDAN, start.plusDays(1), 2));
 
-        // starts after r1 ends - should succeed
+        // if the second reservation begins exactly when the first ends,
+        // the service allows it (no overlap)
         var r3 = singleCarService.reserveCar(CarType.SEDAN, start.plusDays(3), 1);
         assertNotNull(r3);
     }
@@ -185,6 +186,7 @@ class CarRentalServiceTest {
         assertNotNull(second);
 
         // Reservation ending exactly when the second starts should work
+        // this verifies that boundary-aligned bookings are permitted
         Reservation first = singleCarService.reserveCar(CarType.SEDAN, baseTime, 10);
         assertNotNull(first);
     }
