@@ -159,6 +159,7 @@ class CarRentalServiceTest {
     void partialOverlapShouldBeRejected() {
         var singleCarService = new CarRentalService(Map.of(CarType.SEDAN, 1));
 
+        @SuppressWarnings("unused")
         Reservation first = singleCarService.reserveCar(CarType.SEDAN, baseTime, 5);
 
         // Attempt to overlap by 1 day

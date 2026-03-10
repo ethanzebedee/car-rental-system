@@ -1,5 +1,6 @@
 package com.example.carrental.domain;
 
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
@@ -9,12 +10,28 @@ import java.util.UUID;
  * A reservation is immutable once created and tracks a car rental for a
  * specific time period.
  */
+@Entity
+@Table(name = "reservations")
 public class Reservation {
-    private final String id;
-    private final String carId;
-    private final CarType carType;
-    private final LocalDateTime start;
-    private final int numberOfDays;
+    @Id
+    private String id;
+
+    @Column(nullable = false)
+    private String carId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private CarType carType;
+
+    @Column(nullable = false)
+    private LocalDateTime start;
+
+    @Column(nullable = false)
+    private int numberOfDays;
+
+    // Default constructor for JPA
+    protected Reservation() {
+    }
 
     public Reservation(String carId, CarType carType,
             LocalDateTime start, int numberOfDays) {
