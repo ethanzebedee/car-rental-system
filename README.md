@@ -4,7 +4,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-brightgreen)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/Maven-3.9.0-blue)](https://maven.apache.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/yourusername/car-rental-system/ci.yml)](https://github.com/yourusername/car-rental-system/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/ethanzebedee/car-rental-system/ci.yml)](https://github.com/ethanzebedee/car-rental-system/actions)
 
 A car rental system built with Java 21 and Spring Boot 4. Provides a RESTful API for managing car reservations and fleet inventory, with full OpenAPI documentation, Docker support, and a CI/CD pipeline.
 
@@ -48,7 +48,7 @@ Layered architecture with clear separation of concerns:
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/car-rental-system.git
+   git clone https://github.com/ethanzebedee/car-rental-system.git
    cd car-rental-system
    ```
 

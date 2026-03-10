@@ -13,7 +13,7 @@
 	<version>1.0.0</version>
 	<name>Car Rental System</name>
 	<description>A modern car rental system built with Spring Boot</description>
-	<url>https://github.com/yourusername/car-rental-system</url>
+	<url>https://github.com/ethanzebedee/car-rental-system</url>
 	<licenses>
 		<license>
 			<name>MIT License</name>
@@ -27,10 +27,10 @@
 		</developer>
 	</developers>
 	<scm>
-		<connection>scm:git:git://github.com/yourusername/car-rental-system.git</connection>
-		<developerConnection>scm:git:ssh://github.com:yourusername/car-rental-system.git</developerConnection>
+		<connection>scm:git:git://github.com/ethanzebedee/car-rental-system.git</connection>
+		<developerConnection>scm:git:ssh://github.com:ethanzebedee/car-rental-system.git</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/yourusername/car-rental-system</url>
+		<url>https://github.com/ethanzebedee/car-rental-system</url>
 	</scm>
 	<properties>
 		<java.version>21</java.version>
