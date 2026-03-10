@@ -14,8 +14,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -56,7 +62,7 @@ class CarRentalServiceTest {
 
     @Test
     void shouldReserveCarWhenAvailable() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -70,7 +76,7 @@ class CarRentalServiceTest {
     @Test
     void shouldThrowExceptionWhenNoCarsAvailable() {
         Reservation blocking = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(blocking));
 
         assertThrows(NoAvailableCarException.class,
@@ -79,9 +85,9 @@ class CarRentalServiceTest {
 
     @Test
     void reserveDifferentTypes() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
-        when(carRepository.findByType(CarType.SUV)).thenReturn(List.of(suv1));
-        when(carRepository.findByType(CarType.VAN)).thenReturn(List.of(van1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SUV)).thenReturn(List.of(suv1));
+        when(carRepository.findByTypeWithLock(CarType.VAN)).thenReturn(List.of(van1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -94,7 +100,7 @@ class CarRentalServiceTest {
     void limitedInventoryEnforcesMaxCars() {
         Reservation r1 = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 2);
         Reservation r2 = new Reservation(sedan2.getId(), CarType.SEDAN, baseTime, 2);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
         when(reservationRepository.findByCarIdIn(anyList()))
                 .thenReturn(List.of()) // first booking: no conflicts
                 .thenReturn(List.of()) // second booking: no conflicts
@@ -111,7 +117,7 @@ class CarRentalServiceTest {
     void overlappingReservationsAreRejected() {
         LocalDateTime start = LocalDateTime.of(2026, 2, 23, 10, 0);
         Reservation blocking = new Reservation(sedan1.getId(), CarType.SEDAN, start, 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(blocking));
 
         // starts within the existing reservation — should be rejected
@@ -123,7 +129,7 @@ class CarRentalServiceTest {
     void adjacentReservationIsAllowed() {
         LocalDateTime start = LocalDateTime.of(2026, 2, 23, 10, 0);
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, start, 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -135,7 +141,7 @@ class CarRentalServiceTest {
 
     @Test
     void reservationEndIsCalculatedCorrectly() {
-        when(carRepository.findByType(CarType.SUV)).thenReturn(List.of(suv1));
+        when(carRepository.findByTypeWithLock(CarType.SUV)).thenReturn(List.of(suv1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -176,7 +182,7 @@ class CarRentalServiceTest {
     @Test
     void partialOverlapShouldBeRejected() {
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 5);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
 
         assertThrows(NoAvailableCarException.class,
@@ -186,7 +192,7 @@ class CarRentalServiceTest {
     @Test
     void completeOverlapShouldBeRejected() {
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 10);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
 
         assertThrows(NoAvailableCarException.class,
@@ -197,7 +203,7 @@ class CarRentalServiceTest {
     void reservationEndingAtStartOfExistingIsAllowed() {
         // Existing starts at +10; new reservation ends exactly at +10
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime.plusDays(10), 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -316,7 +322,7 @@ class CarRentalServiceTest {
 
     @Test
     void reservationHasValidProperties() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -332,7 +338,7 @@ class CarRentalServiceTest {
 
     @Test
     void reservationIdIsUnique() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -346,7 +352,7 @@ class CarRentalServiceTest {
 
     @Test
     void longReservationWorks() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -356,11 +362,96 @@ class CarRentalServiceTest {
 
     @Test
     void singleDayReservationWorks() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         Reservation res = service.reserveCar(CarType.SEDAN, baseTime, 1);
         assertEquals(baseTime.plusDays(1), res.getEnd());
+    }
+
+    // ========== Concurrency Tests ==========
+
+    /**
+     * Verifies that {@code reserveCar} always invokes {@code findByTypeWithLock}
+     * (rather than the unlocked {@code findByType}) so that the pessimistic-lock
+     * path is exercised on every booking attempt.
+     */
+    @Test
+    void reserveCarUsesPessimisticLockQuery() {
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
+        when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.reserveCar(CarType.SEDAN, baseTime, 3);
+
+        verify(carRepository).findByTypeWithLock(CarType.SEDAN);
+        verify(carRepository, never()).findByType(CarType.SEDAN);
+    }
+
+    /**
+     * Simulates concurrent reservation attempts and verifies that the service
+     * does not throw unexpected exceptions and that every call either
+     * succeeds or raises {@link NoAvailableCarException}.
+     *
+     * <p>Note: unit-test mocks cannot reproduce database-level pessimistic
+     * locking; the exact number of successes is non-deterministic here.
+     * The {@link #reserveCarUsesPessimisticLockQuery()} test verifies that
+     * the locking query is always invoked, while integration tests against a
+     * real DB would confirm exactly-once booking semantics.</p>
+     */
+    @Test
+    void concurrentReservationsDoNotCorrupt() throws InterruptedException {
+        // Arrange: single sedan available, shared mutable reservation list
+        List<Reservation> saved = new ArrayList<>();
+        when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(reservationRepository.findByCarIdIn(anyList())).thenAnswer(inv -> List.copyOf(saved));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> {
+            Reservation r = inv.getArgument(0);
+            synchronized (saved) {
+                saved.add(r);
+            }
+            return r;
+        });
+
+        int threads = 5;
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger successes = new AtomicInteger();
+        AtomicInteger failures = new AtomicInteger();
+
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            futures.add(pool.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await();
+                    service.reserveCar(CarType.SEDAN, baseTime, 3);
+                    successes.incrementAndGet();
+                } catch (NoAvailableCarException e) {
+                    failures.incrementAndGet();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }));
+        }
+
+        ready.await();
+        start.countDown();
+        pool.shutdown();
+        for (Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (java.util.concurrent.ExecutionException e) {
+                // Re-throw any unexpected exception so the test fails visibly
+                throw new RuntimeException("Unexpected exception in concurrent thread", e.getCause());
+            }
+        }
+
+        // Every call must either succeed or raise NoAvailableCarException
+        assertEquals(threads, successes.get() + failures.get(),
+                "Every thread must have either succeeded or received NoAvailableCarException");
+        assertTrue(successes.get() >= 1, "At least one reservation must succeed");
     }
 }
