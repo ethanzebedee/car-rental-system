@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -332,14 +333,23 @@ class CarRentalServiceTest {
 
     @Test
     void reservationIdIsUnique() {
+        List<Reservation> savedReservations = new ArrayList<>();
         when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
-        when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
-        when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        // Each call returns the current accumulation so the second booking sees
+        // sedan1 as already taken and must select sedan2 — exercises conflict detection.
+        when(reservationRepository.findByCarIdIn(anyList()))
+                .thenAnswer(invocation -> new ArrayList<>(savedReservations));
+        when(reservationRepository.save(any())).thenAnswer(invocation -> {
+            Reservation r = invocation.getArgument(0);
+            savedReservations.add(r);
+            return r;
+        });
 
         Reservation res1 = service.reserveCar(CarType.SEDAN, baseTime, 2);
         Reservation res2 = service.reserveCar(CarType.SEDAN, baseTime, 2);
 
         assertNotEquals(res1.getId(), res2.getId());
+        assertNotEquals(res1.getCarId(), res2.getCarId());
     }
 
     // ========== Multi-Day Reservation Tests ==========
