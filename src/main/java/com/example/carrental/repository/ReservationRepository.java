@@ -1,14 +1,17 @@
 package com.example.carrental.repository;
 
-import com.example.carrental.domain.Reservation;
-import com.example.carrental.domain.CarType;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import com.example.carrental.domain.CarType;
+import com.example.carrental.domain.Reservation;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, String> {
 
     List<Reservation> findByCarType(CarType carType);
+
+    List<Reservation> findByCarId(String carId);
 }

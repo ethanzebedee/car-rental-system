@@ -1,5 +1,16 @@
 package com.example.carrental.service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.example.carrental.domain.Car;
 import com.example.carrental.domain.CarType;
 import com.example.carrental.domain.Reservation;
@@ -8,17 +19,14 @@ import com.example.carrental.repository.CarRepository;
 import com.example.carrental.repository.ReservationRepository;
 
 import jakarta.annotation.PostConstruct;
-
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
+import jakarta.transaction.Transactional;
 
 /**
  * Service for managing car reservations in the rental system
  * Handles reservation creation, cancellation, and availability queries
  * Thread-safe implementation using database transactions
  */
+@Service
 public class CarRentalService {
 
     private final CarRepository carRepository;
@@ -28,6 +36,7 @@ public class CarRentalService {
     private final List<Car> cars;
     private final List<Reservation> reservations;
 
+    @Autowired
     public CarRentalService(CarRepository carRepository, ReservationRepository reservationRepository) {
         this.carRepository = carRepository;
         this.reservationRepository = reservationRepository;
@@ -87,6 +96,7 @@ public class CarRentalService {
      *                                  available
      * @throws IllegalArgumentException if parameters are invalid
      */
+    @Transactional
     public Reservation reserveCar(CarType type,
             LocalDateTime start,
             int days) {
@@ -150,6 +160,7 @@ public class CarRentalService {
      * @param reservationId the ID of the reservation to cancel
      * @return true if the reservation was found and cancelled, false otherwise
      */
+    @Transactional
     public boolean cancelReservation(String reservationId) {
         if (isTestMode()) {
             return reservations.removeIf(r -> r.getId().equals(reservationId));
@@ -174,9 +185,7 @@ public class CarRentalService {
                     .filter(r -> r.getCarId().equals(carId))
                     .collect(Collectors.toList());
         } else {
-            return reservationRepository.findAll().stream()
-                    .filter(r -> r.getCarId().equals(carId))
-                    .collect(Collectors.toList());
+            return reservationRepository.findByCarId(carId);
         }
     }
 
@@ -214,8 +223,7 @@ public class CarRentalService {
                     .filter(r -> r.getCarId().equals(carId))
                     .noneMatch(r -> r.overlaps(start, days));
         } else {
-            return reservationRepository.findAll().stream()
-                    .filter(r -> r.getCarId().equals(carId))
+            return reservationRepository.findByCarId(carId).stream()
                     .noneMatch(r -> r.overlaps(start, days));
         }
     }
