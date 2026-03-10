@@ -256,4 +256,18 @@ public class CarRentalService {
             return reservationRepository.findAll();
         }
     }
+
+    /**
+     * Finds a single reservation by its ID.
+     *
+     * @param id the reservation ID
+     * @return an Optional containing the reservation if found, empty otherwise
+     */
+    public Optional<Reservation> getReservationById(String id) {
+        if (isTestMode()) {
+            return reservations.stream().filter(r -> r.getId().equals(id)).findFirst();
+        } else {
+            return reservationRepository.findById(id);
+        }
+    }
 }

@@ -1,25 +1,22 @@
-# Use OpenJDK 21 as base image
-FROM openjdk:21-jdk-slim
+# ── Stage 1: Build ──────────────────────────────────────────────────────────
+FROM maven:3.9.6-eclipse-temurin-21 AS build
 
-# Set working directory
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml
-COPY mvnw .
-COPY mvnw.cmd .
+# Cache dependency downloads separately from the source copy
 COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# Copy source code
 COPY src ./src
+RUN mvn clean package -DskipTests -B
 
-# Make mvnw executable
-RUN chmod +x mvnw
+# ── Stage 2: Run ─────────────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jre-jammy
 
-# Build the application
-RUN ./mvnw clean package -DskipTests
+WORKDIR /app
 
-# Expose port
+COPY --from=build /app/target/car-rental-system-1.0.0.jar app.jar
+
 EXPOSE 8080
 
-# Run the application
-CMD ["java", "-jar", "target/car-rental-system-1.0.0.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

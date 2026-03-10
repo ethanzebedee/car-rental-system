@@ -51,8 +51,8 @@ public class ReservationController {
             @Parameter(description = "Number of rental days (must be > 0)") @RequestParam int days) {
 
         Reservation reservation = carRentalService.reserveCar(carType, startDate, days);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
+        URI location = ServletUriComponentsBuilder.fromCurrentServletMapping()
+                .path("/api/reservations/{id}")
                 .buildAndExpand(reservation.getId())
                 .toUri();
         return ResponseEntity.created(location).body(reservation);
@@ -72,9 +72,7 @@ public class ReservationController {
             @ApiResponse(responseCode = "404", description = "Reservation not found")
     })
     public ResponseEntity<Reservation> getReservation(@PathVariable String id) {
-        return carRentalService.getAllReservations().stream()
-                .filter(r -> r.getId().equals(id))
-                .findFirst()
+        return carRentalService.getReservationById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
