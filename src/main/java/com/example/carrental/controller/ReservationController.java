@@ -94,8 +94,11 @@ public class ReservationController {
     public ResponseEntity<Map<String, Object>> checkAvailability(
             @Parameter(description = "Type of car (SEDAN, SUV, VAN)") @RequestParam CarType type,
             @Parameter(description = "Rental start date (ISO-8601)") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @Parameter(description = "Number of rental days") @RequestParam int days) {
+            @Parameter(description = "Number of rental days (> 0)") @RequestParam int days) {
 
+        if (days <= 0) {
+            throw new IllegalArgumentException("days must be greater than 0");
+        }
         int availableCount = carRentalService.getAvailableCarsCount(type, startDate, days);
         int totalCount = carRentalService.getTotalCarsCount(type);
 
