@@ -239,6 +239,32 @@ class CarRentalServiceTest {
         assertEquals(2, service.getAvailableCarsCount(CarType.SEDAN, baseTime.plusDays(3), 3));
     }
 
+    // ========== getAvailableCarsCount Input Validation Tests ==========
+
+    @Test
+    void getAvailableCarsCountThrowsOnNullType() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.getAvailableCarsCount(null, baseTime, 3));
+    }
+
+    @Test
+    void getAvailableCarsCountThrowsOnNullStart() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.getAvailableCarsCount(CarType.SEDAN, null, 3));
+    }
+
+    @Test
+    void getAvailableCarsCountThrowsOnZeroDays() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.getAvailableCarsCount(CarType.SEDAN, baseTime, 0));
+    }
+
+    @Test
+    void getAvailableCarsCountThrowsOnNegativeDays() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service.getAvailableCarsCount(CarType.SEDAN, baseTime, -1));
+    }
+
     // ========== Cancellation Tests ==========
 
     @Test
