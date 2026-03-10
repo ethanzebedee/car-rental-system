@@ -14,7 +14,7 @@ A car rental system built with Java 21 and Spring Boot 4. Provides a RESTful API
 - **Reservation System**: Book cars for specific dates and durations with automatic availability checking and overlap detection
 - **RESTful API**: Complete REST API with OpenAPI/Swagger documentation
 - **Database Integration**: H2 in-memory database with JPA/Hibernate persistence
-- **Comprehensive Testing**: 33 unit tests with Mockito, covering business logic, overlap detection, validation, and error cases
+- **Comprehensive Testing**: 29 unit tests with Mockito, covering business logic, overlap detection, validation, and error cases
 - **Input Validation**: Validated inputs with structured JSON error responses
 - **Docker Support**: Multi-stage Dockerfile for optimised container builds
 - **CI/CD**: GitHub Actions pipeline that builds, tests, and validates the Docker image on every push
