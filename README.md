@@ -192,4 +192,4 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ---
 
-**Made with ❤️ by Ethan Hammond**
+**Made by Ethan Hammond**
