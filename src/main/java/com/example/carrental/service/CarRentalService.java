@@ -62,6 +62,10 @@ public class CarRentalService {
         List<Car> carsOfType = carRepository.findByType(type);
         List<String> carIds = carsOfType.stream().map(Car::getId).toList();
 
+        if (carIds.isEmpty()) {
+            throw new NoAvailableCarException(
+                    "No " + type + " cars available from " + start + " for " + days + " days");
+        }
         Map<String, List<Reservation>> reservationsByCarId = reservationRepository
                 .findByCarIdIn(carIds)
                 .stream()
