@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, dev]
   pull_request:
     branches: [main]
 
@@ -49,6 +49,6 @@ jobs:
       - name: Test Docker image
         run: |
           docker run -d --name test-app -p 8080:8080 car-rental-system
-          sleep 30
-          curl -f http://localhost:8080/actuator/health || exit 1
+          sleep 15
+          curl -f http://localhost:8080/api/reservations || exit 1
           docker stop test-app
