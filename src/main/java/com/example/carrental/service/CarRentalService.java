@@ -97,7 +97,19 @@ public class CarRentalService {
         return reservationRepository.findByCarId(carId);
     }
 
+    /**
+     * Returns the number of available cars of the given type for the specified period.
+     *
+     * @throws IllegalArgumentException if any parameter is null or days &lt;= 0
+     */
     public int getAvailableCarsCount(CarType type, LocalDateTime start, int days) {
+        if (type == null)
+            throw new IllegalArgumentException("Car type cannot be null");
+        if (start == null)
+            throw new IllegalArgumentException("Start time cannot be null");
+        if (days <= 0)
+            throw new IllegalArgumentException("Number of days must be greater than 0");
+
         List<Car> carsOfType = carRepository.findByType(type);
         List<String> carIds = carsOfType.stream().map(Car::getId).toList();
 
