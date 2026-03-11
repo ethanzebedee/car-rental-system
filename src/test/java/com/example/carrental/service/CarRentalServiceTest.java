@@ -243,18 +243,18 @@ class CarRentalServiceTest {
 
     @Test
     void cancelValidReservationReturnsTrue() {
-        when(reservationRepository.existsById("res-1")).thenReturn(true);
+        when(reservationRepository.deleteReservationById("res-1")).thenReturn(1);
 
         assertTrue(service.cancelReservation("res-1"));
-        verify(reservationRepository).deleteById("res-1");
+        verify(reservationRepository).deleteReservationById("res-1");
     }
 
     @Test
     void cancelInvalidReservationReturnsFalse() {
-        when(reservationRepository.existsById("no-such-id")).thenReturn(false);
+        when(reservationRepository.deleteReservationById("no-such-id")).thenReturn(0);
 
         assertFalse(service.cancelReservation("no-such-id"));
-        verify(reservationRepository, never()).deleteById(any());
+        verify(reservationRepository).deleteReservationById("no-such-id");
     }
 
     // ========== Retrieval Tests ==========

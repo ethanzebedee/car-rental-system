@@ -90,11 +90,7 @@ public class CarRentalService {
      */
     @Transactional
     public boolean cancelReservation(String reservationId) {
-        if (reservationRepository.existsById(reservationId)) {
-            reservationRepository.deleteById(reservationId);
-            return true;
-        }
-        return false;
+        return reservationRepository.deleteReservationById(reservationId) > 0;
     }
 
     public List<Reservation> getCarReservations(String carId) {
