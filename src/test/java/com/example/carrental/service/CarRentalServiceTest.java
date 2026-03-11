@@ -1,17 +1,16 @@
 package com.example.carrental.service;
 
-import com.example.carrental.domain.Car;
-import com.example.carrental.domain.CarType;
-import com.example.carrental.domain.Reservation;
-import com.example.carrental.exception.NoAvailableCarException;
-import com.example.carrental.repository.CarRepository;
-import com.example.carrental.repository.ReservationRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,10 +22,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.example.carrental.domain.Car;
+import com.example.carrental.domain.CarType;
+import com.example.carrental.domain.Reservation;
+import com.example.carrental.exception.NoAvailableCarException;
+import com.example.carrental.repository.CarRepository;
+import com.example.carrental.repository.ReservationRepository;
 
 /**
  * Unit tests for CarRentalService using Mockito to mock repository
@@ -364,8 +372,11 @@ class CarRentalServiceTest {
 
     @Test
     void reservationIdIsUnique() {
+        Reservation sedan1Res = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 2);
         when(carRepository.findByTypeWithLock(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
-        when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
+        when(reservationRepository.findByCarIdIn(anyList()))
+                .thenReturn(List.of()) // first call: no conflicts
+                .thenReturn(List.of(sedan1Res)); // second call: sedan1 is occupied
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         Reservation res1 = service.reserveCar(CarType.SEDAN, baseTime, 2);
@@ -422,11 +433,13 @@ class CarRentalServiceTest {
      * does not throw unexpected exceptions and that every call either
      * succeeds or raises {@link NoAvailableCarException}.
      *
-     * <p>Note: unit-test mocks cannot reproduce database-level pessimistic
+     * <p>
+     * Note: unit-test mocks cannot reproduce database-level pessimistic
      * locking; the exact number of successes is non-deterministic here.
      * The {@link #reserveCarUsesPessimisticLockQuery()} test verifies that
      * the locking query is always invoked, while integration tests against a
-     * real DB would confirm exactly-once booking semantics.</p>
+     * real DB would confirm exactly-once booking semantics.
+     * </p>
      */
     @Test
     void concurrentReservationsDoNotCorrupt() throws InterruptedException {
