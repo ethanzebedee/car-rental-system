@@ -59,7 +59,7 @@ public class CarRentalService {
         if (days <= 0)
             throw new IllegalArgumentException("Number of days must be greater than 0");
 
-        List<Car> carsOfType = carRepository.findByType(type);
+        List<Car> carsOfType = carRepository.findByTypeWithLock(type);
         List<String> carIds = carsOfType.stream().map(Car::getId).toList();
 
         if (carIds.isEmpty()) {
