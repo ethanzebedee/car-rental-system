@@ -56,7 +56,7 @@ class CarRentalServiceTest {
 
     @Test
     void shouldReserveCarWhenAvailable() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -70,7 +70,7 @@ class CarRentalServiceTest {
     @Test
     void shouldThrowExceptionWhenNoCarsAvailable() {
         Reservation blocking = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(blocking));
 
         assertThrows(NoAvailableCarException.class,
@@ -79,9 +79,9 @@ class CarRentalServiceTest {
 
     @Test
     void reserveDifferentTypes() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
-        when(carRepository.findByType(CarType.SUV)).thenReturn(List.of(suv1));
-        when(carRepository.findByType(CarType.VAN)).thenReturn(List.of(van1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SUV)).thenReturn(List.of(suv1));
+        when(carRepository.findByTypeForUpdate(CarType.VAN)).thenReturn(List.of(van1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -94,7 +94,7 @@ class CarRentalServiceTest {
     void limitedInventoryEnforcesMaxCars() {
         Reservation r1 = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 2);
         Reservation r2 = new Reservation(sedan2.getId(), CarType.SEDAN, baseTime, 2);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
         when(reservationRepository.findByCarIdIn(anyList()))
                 .thenReturn(List.of()) // first booking: no conflicts
                 .thenReturn(List.of()) // second booking: no conflicts
@@ -111,7 +111,7 @@ class CarRentalServiceTest {
     void overlappingReservationsAreRejected() {
         LocalDateTime start = LocalDateTime.of(2026, 2, 23, 10, 0);
         Reservation blocking = new Reservation(sedan1.getId(), CarType.SEDAN, start, 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(blocking));
 
         // starts within the existing reservation — should be rejected
@@ -123,7 +123,7 @@ class CarRentalServiceTest {
     void adjacentReservationIsAllowed() {
         LocalDateTime start = LocalDateTime.of(2026, 2, 23, 10, 0);
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, start, 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -135,7 +135,7 @@ class CarRentalServiceTest {
 
     @Test
     void reservationEndIsCalculatedCorrectly() {
-        when(carRepository.findByType(CarType.SUV)).thenReturn(List.of(suv1));
+        when(carRepository.findByTypeForUpdate(CarType.SUV)).thenReturn(List.of(suv1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -176,7 +176,7 @@ class CarRentalServiceTest {
     @Test
     void partialOverlapShouldBeRejected() {
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 5);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
 
         assertThrows(NoAvailableCarException.class,
@@ -186,7 +186,7 @@ class CarRentalServiceTest {
     @Test
     void completeOverlapShouldBeRejected() {
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime, 10);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
 
         assertThrows(NoAvailableCarException.class,
@@ -197,7 +197,7 @@ class CarRentalServiceTest {
     void reservationEndingAtStartOfExistingIsAllowed() {
         // Existing starts at +10; new reservation ends exactly at +10
         Reservation existing = new Reservation(sedan1.getId(), CarType.SEDAN, baseTime.plusDays(10), 3);
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of(existing));
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -316,7 +316,7 @@ class CarRentalServiceTest {
 
     @Test
     void reservationHasValidProperties() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -332,7 +332,7 @@ class CarRentalServiceTest {
 
     @Test
     void reservationIdIsUnique() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1, sedan2));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -346,7 +346,7 @@ class CarRentalServiceTest {
 
     @Test
     void longReservationWorks() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -356,7 +356,7 @@ class CarRentalServiceTest {
 
     @Test
     void singleDayReservationWorks() {
-        when(carRepository.findByType(CarType.SEDAN)).thenReturn(List.of(sedan1));
+        when(carRepository.findByTypeForUpdate(CarType.SEDAN)).thenReturn(List.of(sedan1));
         when(reservationRepository.findByCarIdIn(anyList())).thenReturn(List.of());
         when(reservationRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 

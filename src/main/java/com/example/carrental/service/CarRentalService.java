@@ -59,7 +59,9 @@ public class CarRentalService {
         if (days <= 0)
             throw new IllegalArgumentException("Number of days must be greater than 0");
 
-        List<Car> carsOfType = carRepository.findByType(type);
+        // Pessimistic write lock prevents concurrent transactions from selecting
+        // the same car as available and creating overlapping reservations.
+        List<Car> carsOfType = carRepository.findByTypeForUpdate(type);
         List<String> carIds = carsOfType.stream().map(Car::getId).toList();
 
         if (carIds.isEmpty()) {
