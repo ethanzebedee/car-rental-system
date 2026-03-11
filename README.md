@@ -33,7 +33,7 @@ Layered architecture with clear separation of concerns:
 - **Immutable Reservations**: Once created, reservations cannot be modified
 - **Overlap Detection**: `Reservation.overlaps()` uses half-open interval logic — adjacent bookings are permitted, overlapping ones are rejected
 - **Custom Exceptions**: `NoAvailableCarException` maps to 409 Conflict; `IllegalArgumentException` maps to 400 Bad Request
-- **Spring Profiles**: `dev` profile enables the H2 console and verbose SQL logging; the base profile is production-safe
+- **Spring Profiles**: `dev` profile is the default and enables the H2 console and verbose SQL logging; configure a separate profile for production deployments
 
 ## 🚀 Quick Start
 

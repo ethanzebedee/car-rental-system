@@ -249,18 +249,18 @@ class CarRentalServiceTest {
 
     @Test
     void cancelValidReservationReturnsTrue() {
-        when(reservationRepository.existsById("res-1")).thenReturn(true);
+        when(reservationRepository.deleteReservationById("res-1")).thenReturn(1);
 
         assertTrue(service.cancelReservation("res-1"));
-        verify(reservationRepository).deleteById("res-1");
+        verify(reservationRepository).deleteReservationById("res-1");
     }
 
     @Test
     void cancelInvalidReservationReturnsFalse() {
-        when(reservationRepository.existsById("no-such-id")).thenReturn(false);
+        when(reservationRepository.deleteReservationById("no-such-id")).thenReturn(0);
 
         assertFalse(service.cancelReservation("no-such-id"));
-        verify(reservationRepository, never()).deleteById(any());
+        verify(reservationRepository).deleteReservationById("no-such-id");
     }
 
     // ========== Retrieval Tests ==========
@@ -346,6 +346,8 @@ class CarRentalServiceTest {
         Reservation res2 = service.reserveCar(CarType.SEDAN, baseTime, 2);
 
         assertNotEquals(res1.getId(), res2.getId());
+        // Verify different cars were selected, confirming conflict detection ran
+        assertNotEquals(res1.getCarId(), res2.getCarId());
     }
 
     // ========== Multi-Day Reservation Tests ==========
