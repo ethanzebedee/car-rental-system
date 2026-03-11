@@ -1,172 +1,140 @@
 package com.example.carrental.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.carrental.domain.Car;
 import com.example.carrental.domain.CarType;
 import com.example.carrental.domain.Reservation;
 import com.example.carrental.exception.NoAvailableCarException;
+import com.example.carrental.repository.CarRepository;
+import com.example.carrental.repository.ReservationRepository;
 
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
+import jakarta.annotation.PostConstruct;
 
 /**
- * Service for managing car reservations in the rental system
- * Handles reservation creation, cancellation, and availability queries
- * Thread-safe implementation using CopyOnWriteArrayList
+ * Service for managing car reservations in the rental system.
+ * Handles reservation creation, cancellation, and availability queries.
  */
+@Service
 public class CarRentalService {
 
-    private final List<Car> cars;
-    private final List<Reservation> reservations;
+    private final CarRepository carRepository;
+    private final ReservationRepository reservationRepository;
 
-    public CarRentalService(Map<CarType, Integer> initialInventory) {
-        this.cars = new CopyOnWriteArrayList<>();
-        this.reservations = new CopyOnWriteArrayList<>();
+    public CarRentalService(CarRepository carRepository, ReservationRepository reservationRepository) {
+        this.carRepository = carRepository;
+        this.reservationRepository = reservationRepository;
+    }
 
-        initialInventory.forEach((type, count) -> {
-            for (int i = 0; i < count; i++) {
-                cars.add(new Car(type));
-            }
-        });
+    @PostConstruct
+    void seedInventory() {
+        if (carRepository.count() == 0) {
+            Map.of(CarType.SEDAN, 3, CarType.SUV, 2, CarType.VAN, 2).forEach((type, count) -> {
+                for (int i = 0; i < count; i++) {
+                    carRepository.save(new Car(type));
+                }
+            });
+        }
     }
 
     /**
-     * Reserves a car of the specified type for the given dates.
-     * 
-     * @param type  the type of car to reserve
-     * @param start the start time of the reservation
-     * @param days  the number of days for the reservation
-     * @return the created Reservation
-     * @throws NoAvailableCarException  if no cars of the requested type are
-     *                                  available
-     * @throws IllegalArgumentException if parameters are invalid
+     * Reserves the first available car of the given type for the specified period.
+     *
+     * @throws IllegalArgumentException if any parameter is null or days &lt;= 0
+     * @throws NoAvailableCarException  if no car of the requested type is free
      */
-    public Reservation reserveCar(CarType type,
-            LocalDateTime start,
-            int days) {
-        // validate inputs early to keep service usage safe
-        if (type == null) {
+    @Transactional
+    public Reservation reserveCar(CarType type, LocalDateTime start, int days) {
+        if (type == null)
             throw new IllegalArgumentException("Car type cannot be null");
-        }
-        if (start == null) {
+        if (start == null)
             throw new IllegalArgumentException("Start time cannot be null");
-        }
-        if (days <= 0) {
+        if (days <= 0)
             throw new IllegalArgumentException("Number of days must be greater than 0");
-        }
 
-        // find the first car of the requested type that is free for the
-        // entire requested period
-        // If none exists we signal failure via NoAvailableCarException so callers can
-        // choose how to handle it
-        Car selectedCar = cars.stream()
-                .filter(car -> car.getType() == type)
-                .filter(car -> isAvailable(car.getId(), start, days))
+        List<Car> carsOfType = carRepository.findByTypeWithLock(type);
+        List<String> carIds = carsOfType.stream().map(Car::getId).toList();
+
+        if (carIds.isEmpty()) {
+            throw new NoAvailableCarException(
+                    "No " + type + " cars available from " + start + " for " + days + " days");
+        }
+        Map<String, List<Reservation>> reservationsByCarId = reservationRepository
+                .findByCarIdIn(carIds)
+                .stream()
+                .collect(Collectors.groupingBy(Reservation::getCarId));
+
+        Car selected = carsOfType.stream()
+                .filter(car -> {
+                    List<Reservation> existing = reservationsByCarId.getOrDefault(car.getId(), List.of());
+                    return existing.stream().noneMatch(r -> r.overlaps(start, days));
+                })
                 .findFirst()
                 .orElseThrow(() -> new NoAvailableCarException(
                         "No " + type + " cars available from " + start + " for " + days + " days"));
 
-        // create and record the reservation
-        Reservation reservation = new Reservation(selectedCar.getId(), type, start, days);
-        reservations.add(reservation);
-        return reservation;
+        return reservationRepository.save(new Reservation(selected.getId(), type, start, days));
     }
 
     /**
-     * Reserves a car
-     * 
-     * @param type  the type of car to reserve
-     * @param start the start time of the reservation
-     * @param days  the number of days for the reservation
-     * @return an Optional containing the reservation if successful, empty otherwise
+     * Cancels a reservation by ID.
+     *
+     * @return true if the reservation existed and was cancelled, false otherwise
      */
-    public Optional<Reservation> reserveCarOptional(CarType type,
-            LocalDateTime start,
-            int days) {
-        try {
-            return Optional.of(reserveCar(type, start, days));
-        } catch (NoAvailableCarException e) {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Cancels an existing reservation.
-     * 
-     * @param reservationId the ID of the reservation to cancel
-     * @return true if the reservation was found and cancelled, false otherwise
-     */
+    @Transactional
     public boolean cancelReservation(String reservationId) {
-        return reservations.removeIf(r -> r.getId().equals(reservationId));
+        return reservationRepository.deleteReservationById(reservationId) > 0;
     }
 
-    /**
-     * Retrieves all reservations for a specific car.
-     * 
-     * @param carId the ID of the car
-     * @return a list of all reservations for the car
-     */
     public List<Reservation> getCarReservations(String carId) {
-        return reservations.stream()
-                .filter(r -> r.getCarId().equals(carId))
-                .collect(Collectors.toList());
+        return reservationRepository.findByCarId(carId);
     }
 
     /**
-     * Checks how many cars of a given type are available for the specified dates.
-     * 
-     * @param type  the type of car
-     * @param start the start time
-     * @param days  the number of days
-     * @return the number of available cars of the specified type
+     * Returns the number of available cars of the given type for the specified period.
+     *
+     * @throws IllegalArgumentException if any parameter is null or days &lt;= 0
      */
     public int getAvailableCarsCount(CarType type, LocalDateTime start, int days) {
-        return (int) cars.stream()
-                .filter(car -> car.getType() == type)
-                .filter(car -> isAvailable(car.getId(), start, days))
+        if (type == null)
+            throw new IllegalArgumentException("Car type cannot be null");
+        if (start == null)
+            throw new IllegalArgumentException("Start time cannot be null");
+        if (days <= 0)
+            throw new IllegalArgumentException("Number of days must be greater than 0");
+
+        List<Car> carsOfType = carRepository.findByType(type);
+        List<String> carIds = carsOfType.stream().map(Car::getId).toList();
+
+        Map<String, List<Reservation>> reservationsByCarId = reservationRepository
+                .findByCarIdIn(carIds)
+                .stream()
+                .collect(Collectors.groupingBy(Reservation::getCarId));
+
+        return (int) carsOfType.stream()
+                .filter(car -> {
+                    List<Reservation> existing = reservationsByCarId.getOrDefault(car.getId(), List.of());
+                    return existing.stream().noneMatch(r -> r.overlaps(start, days));
+                })
                 .count();
     }
 
-    /**
-     * Checks if a specific car is available for the given dates.
-     * 
-     * @param carId the ID of the car
-     * @param start the start time
-     * @param days  the number of days
-     * @return true if the car is available, false otherwise
-     */
-    /**
-     * Helper used during reservation logic. We look only at existing
-     * reservations for *this* car and ensure none of them overlap the
-     * requested window.
-     */
-    private boolean isAvailable(String carId,
-            LocalDateTime start,
-            int days) {
-        return reservations.stream()
-                .filter(r -> r.getCarId().equals(carId))
-                .noneMatch(r -> r.overlaps(start, days));
-    }
-
-    /**
-     * Gets the total number of cars of a specific type.
-     * 
-     * @param type the type of car
-     * @return the number of cars of that type
-     */
     public int getTotalCarsCount(CarType type) {
-        return (int) cars.stream()
-                .filter(car -> car.getType() == type)
-                .count();
+        return (int) carRepository.countByType(type);
     }
 
-    /**
-     * Gets all reservations in the system.
-     * 
-     * @return a list of all reservations
-     */
     public List<Reservation> getAllReservations() {
-        return new ArrayList<>(reservations);
+        return reservationRepository.findAll();
+    }
+
+    public Optional<Reservation> getReservationById(String id) {
+        return reservationRepository.findById(id);
     }
 }

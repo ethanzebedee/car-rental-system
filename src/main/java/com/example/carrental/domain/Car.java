@@ -1,5 +1,6 @@
 package com.example.carrental.domain;
 
+import jakarta.persistence.*;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -9,9 +10,19 @@ import java.util.UUID;
  * In a real system the car could also have a license plate, mileage,
  * or other attributes
  */
+@Entity
+@Table(name = "cars")
 public class Car {
-    private final String id; // unique identifier for this car instance
-    private final CarType type; // the category of vehicle
+    @Id
+    private String id; // unique identifier for this car instance
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private CarType type; // the category of vehicle
+
+    // Default constructor for JPA
+    protected Car() {
+    }
 
     public Car(CarType type) {
         this.id = UUID.randomUUID().toString();

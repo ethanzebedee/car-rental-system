@@ -1,291 +1,195 @@
-# Car Rental System
+# 🚗 Car Rental System
 
-**Technical Assessment – Ethan Hammond**  
-Charles River Development | March 2026
+[![Java](https://img.shields.io/badge/Java-21-orange)](https://openjdk.java.net/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-brightgreen)](https://spring.io/projects/spring-boot)
+[![Maven](https://img.shields.io/badge/Maven-3.9.0-blue)](https://maven.apache.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/ethanzebedee/car-rental-system/ci.yml)](https://github.com/ethanzebedee/car-rental-system/actions)
 
-Java 21 • Maven • JUnit 5 • 32 Tests Passing
+A car rental system built with Java 21 and Spring Boot 4. Provides a RESTful API for managing car reservations and fleet inventory, with full OpenAPI documentation, Docker support, and a CI/CD pipeline.
 
----
+## ✨ Features
 
-Hi, I'm Ethan. This document walks you through the Car Rental System I built for this assessment. You can follow along as I present, or use it as a reference afterward.
+- **Fleet Management**: Manage different car types (Sedan, SUV, Van) with configurable inventory
+- **Reservation System**: Book cars for specific dates and durations with automatic availability checking and overlap detection
+- **RESTful API**: Complete REST API with OpenAPI/Swagger documentation
+- **Database Integration**: H2 in-memory database with JPA/Hibernate persistence
+- **Comprehensive Testing**: 29 unit tests with Mockito, covering business logic, overlap detection, validation, and error cases
+- **Input Validation**: Validated inputs with structured JSON error responses
+- **Docker Support**: Multi-stage Dockerfile for optimised container builds
+- **CI/CD**: GitHub Actions pipeline that builds, tests, and validates the Docker image on every push
 
-## The Brief
+## 🏗️ Architecture
 
-The task was straightforward: **design and implement a simulated car rental system using object-oriented principles.**
+Layered architecture with clear separation of concerns:
 
-Requirements:
+- **Domain Layer**: Core business entities (`Car`, `Reservation`, `CarType`)
+- **Service Layer**: Business logic, validation, and transaction management
+- **Controller Layer**: REST API endpoints with OpenAPI annotations
+- **Repository Layer**: Data access via Spring Data JPA
 
-- Reserve a car by type (**Sedan**, **SUV**, or **Van**) at a given date and time for N days.
-- Enforce **limited fleet sizes** per type, no overbooking.
-- **Prove it works** with comprehensive unit tests.
+### Key Design Decisions
 
-I chose Java 21 with Maven because it aligns with the job description's tech stack and is a modern LTS release that maps directly to the requirements.
+- **Immutable Reservations**: Once created, reservations cannot be modified
+- **Overlap Detection**: `Reservation.overlaps()` uses half-open interval logic — adjacent bookings are permitted, overlapping ones are rejected
+- **Custom Exceptions**: `NoAvailableCarException` maps to 409 Conflict; `IllegalArgumentException` maps to 400 Bad Request
+- **Spring Profiles**: `dev` profile is the default and enables the H2 console and verbose SQL logging; configure a separate profile for production deployments
 
-## Domain Model – the Core Design
+## 🚀 Quick Start
 
-I split the problem into five classes, each with a single responsibility:
+### Prerequisites
 
-| Class                       | Purpose                                                    |
-| --------------------------- | ---------------------------------------------------------- |
-| **CarType**                 | Enum: `SEDAN`, `SUV`, `VAN`                                |
-| **Car**                     | A physical vehicle with a unique ID and type               |
-| **Reservation**             | Immutable record of a booking: car, start time, duration   |
-| **NoAvailableCarException** | Custom exception for failed bookings                       |
-| **CarRentalService**        | Entry point: manages fleet inventory and reservation logic |
+- Java 21 or higher
+- Maven 3.6+
+- Docker (optional)
 
-The key design choice was **making Reservation immutable**. Once you book a car, the reservation object can't change. This eliminates an entire class of bugs as no one can alter a reservation mid-check
+### Installation
 
-**CarRentalService** holds two pieces of state:
+1. **Clone the repository**
 
-- A map of inventory limits per car type (`Map<CarType, Integer>`)
-- A list of active reservations (`CopyOnWriteArrayList`)
+   ```bash
+   git clone https://github.com/ethanzebedee/car-rental-system.git
+   cd car-rental-system
+   ```
 
-To reserve a car, the service filters the fleet by type, checks each candidate for overlapping reservations, and either returns a booking or throws `NoAvailableCarException` with a descriptive message.
+2. **Run the application**
 
-## Implementation – Key Decisions
+   ```bash
+   mvn spring-boot:run
+   ```
 
-### Availability & Overlap Detection
+   The application starts on `http://localhost:8080` with the `dev` profile active. To run with a specific profile:
 
-The core algorithm is straightforward. When you request a car for a date range, the service checks all existing reservations for that car type. If any overlap with your requested dates, that car is out.
+   ```bash
+   mvn spring-boot:run -Dspring-boot.run.profiles=prod
+   ```
 
-Overlap condition:
+3. **Run tests**
 
-```
-existingStart < requestEnd  &&  existingEnd > requestStart
-```
+   ```bash
+   mvn test
+   ```
 
-This handles partial overlaps, full overlaps, and allows back-to-back bookings. A car returned on Day 5 at midnight is available from Day 5 at midnight.
-
-### Thread Safety
-
-The reservation list uses `CopyOnWriteArrayList`. Reads are lock-free; writes create a new copy of the backing array. This is ideal for a read-heavy scenario where you check availability far more often than you create bookings.
-
-### Input Validation – Fail Fast
-
-Every public method validates its inputs at the entry point:
-
-- Null car type? Rejected.
-- Null start time? Rejected.
-- Zero or negative days? Rejected.
-
-Clear error messages make bugs obvious and keep the service state clean.
-
-### Main API
-
-```java
-// Reserve a car (throws if unavailable)
-Reservation reserveCar(CarType type, LocalDateTime start, int days)
-
-// Check how many cars are free for a given period
-int getAvailableCarsCount(CarType type, LocalDateTime start, int days)
-
-// Cancel a reservation and return the car to the pool
-boolean cancelReservation(String reservationId)
-
-// View all reservations in the system
-List<Reservation> getAllReservations()
-```
-
-## SOLID Principles – Architectural Thinking
-
-This was designed with the SOLID principles in mind. Here's how each applies:
-
-### Single Responsibility Principle (SRP)
-
-Each class has one reason to change:
-
-- **CarType** – changes only if business adds/removes car categories
-- **Car** – changes only if we modify how a physical vehicle is represented
-- **Reservation** – changes only if booking data structure evolves
-- **NoAvailableCarException** – encapsulates one error condition
-- **CarRentalService** – single responsibility: manage availability and bookings
-
-This means if a requirement changes such as "add pricing", only one class needs to be modified, not five.
-
-### Open/Closed Principle (OCP)
-
-The system is **open for extension, closed for modification**:
-
-- Adding a new car type? Add an enum value. Service logic doesn't change.
-- Adding pricing? Extend `Reservation` with a pricing field without touching `CarRentalService`.
-- Adding a persistence layer? Introduce a repository interface; the service logic remains unchanged.
-
-The service can be tested with mock data and a database swapped later
-
-### Liskov Substitution Principle (LSP)
-
-Custom exception properly extends `RuntimeException`. Any code catching `RuntimeException` can handle `NoAvailableCarException` without knowing the subtype – and it behaves as expected (throws when inventory is exhausted).
-
-### Interface Segregation Principle (ISP)
-
-The public API exposes only the methods clients need:
-
-```java
-reserveCar(...)              // book a car
-cancelReservation(...)       // cancel a booking
-getAvailableCarsCount(...)   // check availability
-getAllReservations(...)      // admin/reporting view
-```
-
-### Dependency Inversion Principle (DIP)
-
-The service depends on **abstractions**, not concrete classes:
-
-```java
-// Constructor receives a Map (abstraction), not a HashMap (concrete)
-public CarRentalService(Map<CarType, Integer> initialInventory) { ... }
-
-// Internal state uses collection interfaces
-private final List<Car> cars;
-private final List<Reservation> reservations;
-```
-
-If persistence is added later, a repository abstraction can be injected:
-
-```java
-public CarRentalService(Map<CarType, Integer> inventory, ReservationRepository repo) { ... }
-```
-
-The core logic doesn't change; only the data source swaps out.
-
----
-
-## Testing – Proving It Works
-
-I followed a test-driven approach: write a failing test, implement the feature, refactor, repeat. The `CarRentalServiceTest` uses JUnit 5 and covers 32 test cases across these areas:
-
-| Area                  | Count | What It Proves                                         |
-| --------------------- | ----- | ------------------------------------------------------ |
-| Core reservations     | 6     | Happy path: book a car, get back a valid Reservation   |
-| Inventory limits      | 4     | Booking fails once all cars of a type are taken        |
-| Overlap detection     | 4     | Partial, full, and adjacent overlaps handled correctly |
-| Input validation      | 4     | Null/invalid inputs rejected with clear messages       |
-| Cancellation          | 3     | Cancel works; cancelled cars become available again    |
-| Availability queries  | 3     | `getAvailableCarsCount()` returns accurate numbers     |
-| Reservation retrieval | 3     | Car-specific and system-wide views both work           |
-| Edge cases            | 2     | 1-day and 365-day bookings both succeed                |
-
-To run the full suite:
+### Docker
 
 ```bash
-mvn clean test
+# Build the Docker image (multi-stage build)
+docker build -t car-rental-system .
+
+# Run with Docker
+docker run -p 8080:8080 car-rental-system
 ```
 
-## AI Tools & Prompt Engineering
+## 📖 API Documentation
 
-I want to be transparent about how I'd approach this with AI assistance, because this reflects how professional development increasingly works and I've thought carefully about it.
+Once the application is running, visit:
 
-### The Core Lesson: Treat AI Like a Contractor
+- **Swagger UI**: http://localhost:8080/swagger-ui.html
+- **API Docs (JSON)**: http://localhost:8080/v3/api-docs
+- **H2 Console** (dev profile): http://localhost:8080/h2-console
 
-The quality of AI output is almost entirely determined by the quality of your brief. A vague prompt produces vague code. A structured specification produces structured, reviewable code.
+### Endpoints
 
-**Weak prompt:**
+| Method | Endpoint                         | Description              | Success |
+| ------ | -------------------------------- | ------------------------ | ------- |
+| POST   | `/api/reservations`              | Create a new reservation | 201     |
+| GET    | `/api/reservations`              | List all reservations    | 200     |
+| GET    | `/api/reservations/{id}`         | Get reservation by ID    | 200     |
+| DELETE | `/api/reservations/{id}`         | Cancel a reservation     | 204     |
+| GET    | `/api/reservations/availability` | Check car availability   | 200     |
 
-> "Write a car rental system in Java"
+### Example Requests
 
-You would get one or two classes, no date handling, no fleet limits enforced, tests that are optional. The AI invents requirements and architecture as it goes confidently and often incorrectly.
+```bash
+# Check availability
+curl "http://localhost:8080/api/reservations/availability?type=SUV&startDate=2026-07-01T10:00:00&days=3"
 
-**Strong prompt** (spec document style):
+# Create a reservation
+curl -X POST "http://localhost:8080/api/reservations?carType=SEDAN&startDate=2026-07-01T10:00:00&days=5"
 
-```markdown
-## Project Overview
-
-Car Rental System in Java 21 with Maven and JUnit 5.
-
-## Domain Model (Required Classes)
-
-| Class                   | Responsibility                           |
-| ----------------------- | ---------------------------------------- |
-| CarType                 | Enum: SEDAN, SUV, VAN                    |
-| Car                     | Single vehicle with unique ID and type   |
-| Reservation             | Immutable: car, start datetime, duration |
-| NoAvailableCarException | Custom exception for failed bookings     |
-| CarRentalService        | Entry point – fleet + reservations       |
-
-## Functional Requirements
-
-1. Reserve a car by type at a LocalDateTime for N days
-2. Fleet limits per type (e.g. 3 Sedans, 2 SUVs, 2 Vans)
-3. Reject overlapping reservations on the same car
-4. Failed reservation throws NoAvailableCarException
-5. Adjacent bookings (car returned Day 5, new reservation starts Day 5) succeed
-
-## Test Requirements
-
-- Successful reservation returns a Reservation object
-- Fails when all cars of a type are booked for that period
-- Boundary condition: Day 5 end + Day 5 start succeeds
-- Different car types managed independently
-- Back-to-back reservations on same car succeed
-
-## Known Gaps (to list after implementation)
-
-- No persistence layer
-- No concurrency handling beyond basic thread safety
-- No pricing logic
+# Cancel a reservation
+curl -X DELETE http://localhost:8080/api/reservations/{id}
 ```
 
-### Why Structured Prompts Win
+### Error Responses
 
-| Technique               | Why It Matters                                                             |
-| ----------------------- | -------------------------------------------------------------------------- |
-| Tech stack table        | Locks out arbitrary choices (e.g. `java.util.Date` instead of `java.time`) |
-| Named domain classes    | Architecture is fixed before code is written                               |
-| Explicit boundary test  | AI won't think about Day 5 overlaps without being told                     |
-| 'List gaps' instruction | Forces the model to reason critically instead of declaring completion      |
-| Spec format (not prose) | AI treats it as truth throughout, not just the first message               |
+All errors return a structured JSON body:
 
-### Validation Approach
+```json
+{
+  "code": "NO_CAR_AVAILABLE",
+  "message": "No SEDAN cars available from 2026-07-01T10:00 for 5 days",
+  "timestamp": 1234567890
+}
+```
 
-Even with a perfect prompt, output needs review:
+| HTTP Status | Code               | Cause                               |
+| ----------- | ------------------ | ----------------------------------- |
+| 400         | `INVALID_REQUEST`  | Null/invalid input parameters       |
+| 404         | —                  | Reservation ID not found            |
+| 409         | `NO_CAR_AVAILABLE` | No car free for the requested dates |
+| 500         | `INTERNAL_ERROR`   | Unexpected server error             |
 
-1. **Read the tests before the code.** If the "no availability" test doesn't fill the fleet first, it's testing nothing.
-2. **Check overlap logic manually.** Draw a timeline. Verify the boundary condition matches the spec.
-3. **Look for shared mutable state.** AI often puts fleet data in a static field, causing test bleed.
-4. **Sabotage the tests.** Remove the availability check and confirm a test breaks. If nothing fails, coverage is fake.
-5. **Compile immediately.** Run `mvn compile` after every step – catching errors early prevents compounding issues.
+## 🧪 Testing
 
-**The headline:** AI is only as good as the spec you give it. A conversational prompt produces conversational code. A structured spec produces structured, reviewable software.
+```bash
+mvn test
+```
 
-## Known Limitations & Next Steps
+The test suite uses Mockito to mock repository dependencies, so tests run against the real production code path. Coverage includes:
 
-Given the two-hour timebox, the solution is deliberately simple. I know exactly what's missing:
+- ✅ Core reservation and cancellation logic
+- ✅ Inventory limit enforcement
+- ✅ Overlap detection (partial, complete, adjacent, boundary cases)
+- ✅ Input validation (null parameters, zero/negative days)
+- ✅ Availability counting with pre-existing reservations
+- ✅ All retrieval and count methods
 
-| Gap                    | What Production Would Do                             |
-| ---------------------- | ---------------------------------------------------- |
-| **In-memory only**     | Repository layer backed by PostgreSQL or Azure SQL   |
-| **No modification**    | Update/extend endpoints alongside cancel             |
-| **Basic concurrency**  | DB transactions with optimistic locking              |
-| **Static inventory**   | Config-driven or runtime add/remove via admin API    |
-| **No REST API**        | Spring MVC controllers with OpenAPI spec             |
-| **No pricing**         | Rate tables per CarType, duration-based calculations |
-| **No customer model**  | User entity, authentication, history tracking        |
-| **Test coverage gaps** | Property-based tests for overlap logic, load tests   |
+## 🛠️ Project Structure
 
-The architecture is ready for these extensions. The service layer has no framework dependencies, the domain model is clean, and the test suite provides a safety net for adding features.
+```
+src/
+├── main/
+│   ├── java/com/example/carrental/
+│   │   ├── Application.java
+│   │   ├── config/
+│   │   │   └── OpenApiConfig.java
+│   │   ├── controller/
+│   │   │   └── ReservationController.java
+│   │   ├── domain/
+│   │   │   ├── Car.java
+│   │   │   ├── CarType.java
+│   │   │   └── Reservation.java
+│   │   ├── exception/
+│   │   │   ├── ErrorResponse.java
+│   │   │   ├── GlobalExceptionHandler.java
+│   │   │   └── NoAvailableCarException.java
+│   │   ├── repository/
+│   │   │   ├── CarRepository.java
+│   │   │   └── ReservationRepository.java
+│   │   └── service/
+│   │       └── CarRentalService.java
+│   └── resources/
+│       ├── application.properties          # Base (production-safe) config
+│       └── application-dev.properties      # Dev overrides (H2 console, SQL logging)
+└── test/
+    └── java/com/example/carrental/
+        └── service/
+            └── CarRentalServiceTest.java
+```
 
-## What This Maps To – CRD's Needs
+## 🤝 Contributing
 
-| Criterion            | How Addressed                                                                      |
-| -------------------- | ---------------------------------------------------------------------------------- |
-| **OOP principles**   | Clean separation: enum → immutable value object → service layer → custom exception |
-| **Requirements met** | All three core requirements satisfied and proven by tests                          |
-| **Unit tests**       | 32 comprehensive tests covering happy path, edge cases, errors                     |
-| **AI awareness**     | Structured prompt engineering + clear validation methodology                       |
-| **Gap awareness**    | Known limitations documented and understood, not hidden                            |
-| **Tech alignment**   | Java 21, Maven, Spring-ready architecture, event-driven design                     |
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes (`git commit -m 'Add my feature'`)
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request against `main`
+
+## 📝 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## How to Run
-
-```bash
-# Compile the project
-mvn compile
-
-# Run all unit tests
-mvn clean test
-
-# Run a specific test class
-mvn test -Dtest=CarRentalServiceTest
-```
+**Made by Ethan Hammond**
